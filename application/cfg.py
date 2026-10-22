@@ -22,7 +22,7 @@ def set_logger_config():
     logger.add(
         os.path.join(project_path,"app_debug.log"),             # Имя файла лога
         format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}", # Чистый формат
-        level="DEBUG",               # Записывать всё: от DEBUG до CRITICAL
+        level="INFO",               # Записывать всё: от DEBUG до CRITICAL
         rotation="10 MB",            # Создать новый файл, если текущий превысил 10 МБ
         retention="5 days",          # Хранить логи только за последние 5 дней
         compression="zip",           # Старые логи автоматически сжимать в ZIP-архив

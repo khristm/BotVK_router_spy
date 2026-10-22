@@ -11,7 +11,7 @@ from loguru import logger
 from application.database import mok_users as users, get_router_notif_status
 import json
 
-set_logger_config()
+
 
 async def start_polling():
     async with get_messenger() as vk_session:
@@ -83,6 +83,7 @@ async def main():
 
 if __name__ == "__main__":
     try:
+        set_logger_config()
         logger.info("Запуск скрипта")
         asyncio.run(main())
     except KeyboardInterrupt:
