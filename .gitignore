@@ -1,0 +1,9 @@
+/.venv
+/dist
+/build
+.env
+*.log
+*.spec
+config.yml
+/.idea
+/__pycache__

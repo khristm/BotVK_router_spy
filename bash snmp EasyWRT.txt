@@ -1,0 +1,125 @@
+# 0. Установка snmp на роутер
+opkg update
+opkg install snmpd
+
+# 1. Настройка SNMP и кастомного Community-пароля
+uci set snmpd.public.community='your_community_string' 2>/dev/null || uci set snmpd.@community.community='your_community_string'
+uci del snmpd.your_community_string 2>/dev/null
+sed -i '/config pass/,+3d' /etc/config/snmpd 2>/dev/null
+
+cat << 'EOF' >> /etc/config/snmpd
+
+config pass
+        option miboid '.1.3.6.1.4.1.8072.2.255'
+        option prog '/etc/get_dhcp_macs.sh'
+EOF
+uci commit snmpd
+/etc/init.d/snmpd enable
+/etc/init.d/snmpd restart
+
+# 2. Создание оптимизированного блейзинг-парсера DHCP-клиентов
+cat << 'EOF' > /etc/get_dhcp_macs.sh
+#!/bin/sh
+BASE_OID="1.3.6.1.4.1.8072.2.255"
+REQ_OID=$(echo "$2" | sed 's/^\.//')
+RESULT_FILE="/tmp/snmp_online_list"
+TIMEOUT="1"
+
+# 1. СБОР ДАННЫХ (с кэшем 20 сек и ARP-фильтром)
+if [ ! -f "$RESULT_FILE" ] || [ $(( $(date +%s) - $(date -r "$RESULT_FILE" +%s) )) -gt 20 ]; then
+    rm -f "$RESULT_FILE"
+    touch "$RESULT_FILE"
+
+    while read -r time mac ip name auth; do
+        [ -z "$ip" ] && continue
+        
+        # Моментальный фильтр по ARP ядра, отсекаем мертвые IP до всяких пингов
+        if ! ip neighbor show dev br-lan | grep -F -q "$ip"; then
+            continue
+        fi
+        
+        # Две честные последовательные попытки по 1 секунде
+        if ping -c 1 -W "$TIMEOUT" "$ip" >/dev/null 2>&1 || ping -c 1 -W "$TIMEOUT" "$ip" >/dev/null 2>&1; then
+            device_name=$(echo "$name" | sed 's/\*/Unknown/g')
+            echo "IP: $ip | MAC: $mac | Name: $device_name" >> "$RESULT_FILE"
+        fi
+    done < /tmp/dhcp.leases
+fi
+
+[ ! -s "$RESULT_FILE" ] && exit 0
+
+# 2. МГНОВЕННАЯ ОБРАБОТКА ДЛЯ SNMP ВСТРОЕННЫМИ СРЕДСТВАМИ ШЕЛЛА (БЕЗ SED И WC)
+if [ "$1" = "-n" ]; then
+    if [ "$REQ_OID" = "$BASE_OID" ]; then
+        read -r first_line < "$RESULT_FILE"
+        echo ".${BASE_OID}.1"
+        echo "string"
+        echo "$first_line"
+        exit 0
+    fi
+
+    index=1
+    found=0
+    while read -r line; do
+        if [ $found -eq 1 ]; then
+            echo ".${BASE_OID}.${index}"
+            echo "string"
+            echo "$line"
+            exit 0
+        fi
+        if [ "$REQ_OID" = "${BASE_OID}.${index}" ]; then
+            found=1
+        fi
+        index=$((index + 1))
+    done < "$RESULT_FILE"
+    exit 0
+fi
+
+if [ "$1" = "-g" ]; then
+    index=1
+    while read -r line; do
+        if [ "$REQ_OID" = "${BASE_OID}.${index}" ]; then
+            echo ".${REQ_OID}"
+            echo "string"
+            echo "$line"
+            exit 0
+        fi
+        index=$((index + 1))
+    done < "$RESULT_FILE"
+fi
+EOF
+chmod +x /etc/get_dhcp_macs.sh
+
+# ====================================================================
+# НАСТРОЙКА ФАЙРВОЛА ДЛЯ SNMP (ПЕРВОНАЧАЛЬНАЯ НАСТРОЙКА)
+# ====================================================================
+
+# 3-1. Удаляем старые правила, если они существовали (чтобы избежать дубликатов)
+uci del firewall.Allow-SNMP-LAN-Read 2>/dev/null
+uci del firewall.Allow-SNMP-WAN-Read 2>/dev/null
+
+# 3-2. Открытие порта UDP 161 для локальной сети (LAN) — чтобы мониторинг изнутри не отваливался
+uci add firewall rule
+uci set firewall.@rule[-1].name='Allow-SNMP-LAN-Read'
+uci set firewall.@rule[-1].src='lan'
+uci set firewall.@rule[-1].dest_port='161'
+uci set firewall.@rule[-1].proto='udp'
+uci set firewall.@rule[-1].target='ACCEPT'
+
+# 3-3. Открытие порта UDP 161 для внешней сети (WAN) — для удаленного мониторинга
+uci add firewall rule
+uci set firewall.@rule[-1].name='Allow-SNMP-WAN-Read'
+uci set firewall.@rule[-1].src='wan'
+uci set firewall.@rule[-1].dest_port='161'
+uci set firewall.@rule[-1].proto='udp'
+uci set firewall.@rule[-1].target='ACCEPT'
+
+# Применяем изменения в системе
+uci commit firewall
+/etc/init.d/firewall restart
+
+
+# 4. Принудительное сохранение всех изменений во Flash-память роутера
+/sbin/sysupgrade -b /tmp/backup.tar.gz
+
+echo "=== ПОЛНАЯ БЛЕЙЗИНГ-НАСТРОЙКА SNMP УСПЕШНО ЗАВЕРШЕНА ==="
