@@ -6,4 +6,4 @@
 *.spec
 config.yml
 /.idea
-/__pycache__
+**/__pycache__
