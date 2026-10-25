@@ -14,8 +14,10 @@ async def spy(cached_devices_in_router, cached_names_devices, snmp_reader, ip_ro
         return
     msg_enable_device = ''
     msg_disable_device = ''
-    checked_enabled_devices = manager_offline_devices.check_online_list(enabled_devices)
-    checked_disabled_devices = manager_offline_devices.check_offline_list(disabled_devices)
+    checked_enabled_devices = manager_offline_devices.check_online_list(enabled_devices, ip_router,
+                                                                        user_id_in_messenger)
+    checked_disabled_devices = manager_offline_devices.check_offline_list(disabled_devices, ip_router,
+                                                                          user_id_in_messenger)
     for device in checked_enabled_devices:
         msg_enable_device += (f"✅ Устройство ℹ️{cached_names_devices.get(device.mac_address, device.description)}ℹ️, "
                               f"подключено к роутеру ✍ {ip_router}, с ip адресом: {device.ip_address}, "

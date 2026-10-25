@@ -22,7 +22,8 @@ async def default_handler(user_id):
 
 @register_handler("инфо")
 async def get_info(user_id):
-    await send_message_to_vk(user_id,"Пока что впадлу здесь что-то писать")
+    await send_message_to_vk(user_id,"Бот на python, c использованием библиотек: aiosnmp, aiovk. "
+                                     "Ссылка на исходники скрипта: https://github.com/khristm/BotVK_router_spy")
 
 @register_handler("роутеры")
 async def get_users_routers(user_id):

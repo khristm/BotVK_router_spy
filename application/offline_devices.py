@@ -8,41 +8,52 @@ class ManagerOfflineDevices:
         self.delay_to_notif_minutes = delay_to_notif_minutes
         self.cache_offline_time = {}
         self.cache_offline_devices = {}
-    def __clear_cache(self, devices:list[DataSnmp]):
+    def __check_router_cache(self, router_ip, user_id):
+        if self.cache_offline_time.get(user_id) is None:
+            self.cache_offline_time[user_id] = {}
+        if self.cache_offline_devices.get(user_id) is None:
+            self.cache_offline_devices[user_id] = {}
+        if self.cache_offline_time[user_id].get(router_ip) is None:
+            self.cache_offline_time[user_id][router_ip] = {}
+        if self.cache_offline_devices[user_id].get(router_ip) is None:
+            self.cache_offline_devices[user_id][router_ip] = {}
+    def __clear_cache(self, devices:list[DataSnmp], router_ip, user_id):
         """Очистка кеша отключенных устройств от устройств из списка"""
         for device in devices:
-            device_in_cache = self.cache_offline_devices.get(device.mac_address)
+            device_in_cache = self.cache_offline_devices[user_id][router_ip].get(device.mac_address)
             if device_in_cache:
-                del self.cache_offline_devices[device.mac_address]
-            device_time_in_cache = self.cache_offline_time.get(device.mac_address)
+                del self.cache_offline_devices[user_id][router_ip][device.mac_address]
+            device_time_in_cache = self.cache_offline_time[user_id][router_ip].get(device.mac_address)
             if device_time_in_cache:
-                del self.cache_offline_time[device.mac_address]
-    def check_online_list(self, online_list: list[DataSnmp])->list[DataSnmp]:
+                del self.cache_offline_time[user_id][router_ip][device.mac_address]
+    def check_online_list(self, online_list: list[DataSnmp], router_ip, user_id)->list[DataSnmp]:
         """Возвращает список онлайн устройств очищенный от устройств находящихся в кэше отключенных.
         Удаляет из кэша отключенных устройства из списка на входе"""
+        self.__check_router_cache(router_ip, user_id)
         result_online_list = []
         for device in online_list:
-            if self.cache_offline_time.get(device.mac_address) is None:
+            if self.cache_offline_time[user_id][router_ip].get(device.mac_address) is None:
                 result_online_list.append(device)
-        self.__clear_cache(online_list)
+        self.__clear_cache(online_list, router_ip, user_id)
         return result_online_list
-    def check_offline_list(self, offline_list: list[DataSnmp])->list[DataSnmp]:
+    def check_offline_list(self, offline_list: list[DataSnmp], router_ip, user_id)->list[DataSnmp]:
         """Обработка отключенных устройств, проверяет есть ли отключенное устройство уже в кэше, если нет добавляет.
         Проверяте время прошедшее с момента отключения устройства из кэша, если прошло более заданого аргумента
         для класса, добавляет в возвращаемый список и удаляет из кэша"""
+        self.__check_router_cache(router_ip, user_id)
         now = datetime.now()
         result_offline_list = []
         for device in offline_list:
-            cached_time_offline = self.cache_offline_time.get(device.mac_address)
+            cached_time_offline = self.cache_offline_time[user_id][router_ip].get(device.mac_address)
             if cached_time_offline is None:
-                self.cache_offline_time[device.mac_address] = now
-                self.cache_offline_devices[device.mac_address] = device
-        for mac in self.cache_offline_time.keys():
-            cached_time_offline = self.cache_offline_time[mac]
+                self.cache_offline_time[user_id][router_ip][device.mac_address] = now
+                self.cache_offline_devices[user_id][router_ip][device.mac_address] = device
+        for mac in self.cache_offline_time[user_id][router_ip].keys():
+            cached_time_offline = self.cache_offline_time[user_id][router_ip][mac]
             delta = now - cached_time_offline
             if delta > timedelta(minutes=self.delay_to_notif_minutes):
-                result_offline_list.append(self.cache_offline_devices[mac])
-        self.__clear_cache(result_offline_list)
+                result_offline_list.append(self.cache_offline_devices[user_id][router_ip][mac])
+        self.__clear_cache(result_offline_list, router_ip, user_id)
         logger.debug(f"Cached offline time: {self.cache_offline_time}")
         logger.debug(f"Cached offline devices: {self.cache_offline_devices}")
         return result_offline_list

@@ -83,7 +83,7 @@ async def main():
 
 if __name__ == "__main__":
     try:
-        set_logger_config()
+        # set_logger_config()
         logger.info("Запуск скрипта")
         asyncio.run(main())
     except KeyboardInterrupt:

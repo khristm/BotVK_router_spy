@@ -22,7 +22,7 @@ def set_logger_config():
     logger.add(
         os.path.join(project_path,"app_debug.log"),             # Имя файла лога
         format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}", # Чистый формат
-        level="INFO",               # Записывать всё: от DEBUG до CRITICAL
+        level=LOG_LEVEL,               # Записывать всё: от DEBUG до CRITICAL
         rotation="10 MB",            # Создать новый файл, если текущий превысил 10 МБ
         retention="5 days",          # Хранить логи только за последние 5 дней
         compression="zip",           # Старые логи автоматически сжимать в ZIP-архив
@@ -40,6 +40,7 @@ DELAY_OFFLINE_DEVICE_NOTIF_MINUTES = int(os.getenv("DELAY_OFFLINE_DEVICE_NOTIF_M
 OID_ONLINE_DEVICE = os.getenv("OID_ONLINE_DEVICE")
 TOKEN_MESSENGER = os.getenv("TOKEN_MESSENGER")
 GROUP_ID = os.getenv("GROUP_ID")
+LOG_LEVEL = os.getenv("LOG_LEVEL", "ERROR")
 
 def get_user_cfg(file_path):
     try:
