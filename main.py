@@ -46,6 +46,7 @@ async def start_polling():
                         asyncio.create_task(default_handler(peer_id))
             except Exception as exception:
                 logger.critical(f"Ошибка при поллинге VK: {exception}")
+                logger.exception(exception)
                 await asyncio.sleep(30)
 
 async def start_watching_router_users_list():

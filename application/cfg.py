@@ -41,6 +41,8 @@ OID_ONLINE_DEVICE = os.getenv("OID_ONLINE_DEVICE")
 TOKEN_MESSENGER = os.getenv("TOKEN_MESSENGER")
 GROUP_ID = os.getenv("GROUP_ID")
 LOG_LEVEL = os.getenv("LOG_LEVEL", "ERROR")
+SNMP_TIMEOUT = float(os.getenv("SNMP_TIMEOUT_SECONDS", 30.0))
+SNMP_RETRIES = int(os.getenv("SNMP_RETRIES", 3))
 
 def get_user_cfg(file_path):
     try:
